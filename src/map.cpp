@@ -698,7 +698,10 @@ void map::move_vehicle( vehicle &veh, const tripoint &dp, const tileray &facing 
     }
 
     tripoint pt = veh.global_pos3();
-    veh.precalc_mounts( 1, veh.skidding ? veh.turn_dir : facing.dir() );
+    veh.precalc_mounts( 1, veh.skidding ? veh.turn_dir : facing.dir(), veh.pivot_point() );
+
+    // cancel out any movement of the vehicle due only to a change in pivot
+    tripoint dp1 = dp - veh.pivot_displacement();
 
     int impulse = 0;
 
@@ -721,7 +724,7 @@ void map::move_vehicle( vehicle &veh, const tripoint &dp, const tileray &facing 
     do
     {
         collisions.clear();
-        veh.collision( collisions, dp, false );
+        veh.collision( collisions, dp1, false );
 
         // Vehicle collisions
         std::map<vehicle*, std::vector<veh_collision> > veh_collisions;
@@ -833,7 +836,7 @@ void map::move_vehicle( vehicle &veh, const tripoint &dp, const tileray &facing 
         }
         veh.on_move();
         // Actually change position
-        displace_vehicle( pt, dp );
+        displace_vehicle( pt, dp1 );
     } else if( !vertical ) {
         veh.stop();
     }
@@ -1369,6 +1372,8 @@ void map::displace_vehicle( tripoint &p, const tripoint &dp )
     for( auto &prt : veh->parts ) {
         prt.precalc[0] = prt.precalc[1];
     }
+    veh->pivot_anchor[0] = veh->pivot_anchor[1];
+    veh->pivot_rotation[0] = veh->pivot_rotation[1];
 
     veh->posx = dst_offset_x;
     veh->posy = dst_offset_y;
@@ -4901,12 +4906,11 @@ bool map::has_items( const tripoint &p ) const
 }
 
 template <typename Stack>
-std::list<item> use_amount_stack( Stack stack, const itype_id type, long &quantity,
-                                const bool use_container )
+std::list<item> use_amount_stack( Stack stack, const itype_id type, long &quantity )
 {
     std::list<item> ret;
     for( auto a = stack.begin(); a != stack.end() && quantity > 0; ) {
-        if( a->use_amount(type, quantity, use_container, ret) ) {
+        if( a->use_amount(type, quantity, ret) ) {
             a = stack.erase( a );
         } else {
             ++a;
@@ -4916,7 +4920,7 @@ std::list<item> use_amount_stack( Stack stack, const itype_id type, long &quanti
 }
 
 std::list<item> map::use_amount_square( const tripoint &p, const itype_id type,
-                                        long &quantity, const bool use_container )
+                                        long &quantity )
 {
     std::list<item> ret;
     int vpart = -1;
@@ -4926,17 +4930,17 @@ std::list<item> map::use_amount_square( const tripoint &p, const itype_id type,
         const int cargo = veh->part_with_feature(vpart, "CARGO");
         if( cargo >= 0 ) {
             std::list<item> tmp = use_amount_stack( veh->get_items(cargo), type,
-                                                    quantity, use_container );
+                                                    quantity );
             ret.splice( ret.end(), tmp );
         }
     }
-    std::list<item> tmp = use_amount_stack( i_at( p ), type, quantity, use_container );
+    std::list<item> tmp = use_amount_stack( i_at( p ), type, quantity );
     ret.splice( ret.end(), tmp );
     return ret;
 }
 
 std::list<item> map::use_amount( const tripoint &origin, const int range, const itype_id type,
-                                 long &quantity, const bool use_container )
+                                 long &quantity )
 {
     std::list<item> ret;
     for( int radius = 0; radius <= range && quantity > 0; radius++ ) {
@@ -4946,7 +4950,7 @@ std::list<item> map::use_amount( const tripoint &origin, const int range, const 
         for( x = origin.x - radius; x <= origin.x + radius; x++ ) {
             for( y = origin.y - radius; y <= origin.y + radius; y++ ) {
                 if( rl_dist( origin, p ) >= radius ) {
-                    std::list<item> tmp = use_amount_square( p , type, quantity, use_container );
+                    std::list<item> tmp = use_amount_square( p , type, quantity );
                     ret.splice( ret.end(), tmp );
                 }
             }
@@ -7448,6 +7452,8 @@ void map::draw_fill_background(const id_or_id<ter_t> & f) {
 }
 
 void map::draw_square_ter(ter_id type, int x1, int y1, int x2, int y2) {
+    if(x1>x2) std::swap(x1,x2);
+    if(y1>y2) std::swap(y1,y2);
     for (int x = x1; x <= x2; x++) {
         for (int y = y1; y <= y2; y++) {
             ter_set(x, y, type);
@@ -7459,6 +7465,8 @@ void map::draw_square_ter(std::string type, int x1, int y1, int x2, int y2) {
 }
 
 void map::draw_square_furn(furn_id type, int x1, int y1, int x2, int y2) {
+    if(x1>x2) std::swap(x1,x2);
+    if(y1>y2) std::swap(y1,y2);
     for (int x = x1; x <= x2; x++) {
         for (int y = y1; y <= y2; y++) {
             furn_set(x, y, type);
@@ -7470,6 +7478,8 @@ void map::draw_square_furn(std::string type, int x1, int y1, int x2, int y2) {
 }
 
 void map::draw_square_ter(ter_id (*f)(), int x1, int y1, int x2, int y2) {
+    if(x1>x2) std::swap(x1,x2);
+    if(y1>y2) std::swap(y1,y2);
     for (int x = x1; x <= x2; x++) {
         for (int y = y1; y <= y2; y++) {
             ter_set(x, y, f());
@@ -7478,6 +7488,8 @@ void map::draw_square_ter(ter_id (*f)(), int x1, int y1, int x2, int y2) {
 }
 
 void map::draw_square_ter(const id_or_id<ter_t> & f, int x1, int y1, int x2, int y2) {
+    if(x1>x2) std::swap(x1,x2);
+    if(y1>y2) std::swap(y1,y2);
     for (int x = x1; x <= x2; x++) {
         for (int y = y1; y <= y2; y++) {
             ter_set(x, y, f.get() );
@@ -7488,12 +7500,13 @@ void map::draw_square_ter(const id_or_id<ter_t> & f, int x1, int y1, int x2, int
 void map::draw_rough_circle(ter_id type, int x, int y, int rad) {
     for (int i = x - rad; i <= x + rad; i++) {
         for (int j = y - rad; j <= y + rad; j++) {
-            if (rl_dist(x, y, i, j) + rng(0, 3) <= rad) {
+            if (trig_dist(x, y, i, j) + rng(0, 3) <= rad) {
                 ter_set(i, j, type);
             }
         }
     }
 }
+
 void map::draw_rough_circle(std::string type, int x, int y, int rad) {
     draw_rough_circle(find_ter_id(type), x, y, rad);
 }
@@ -7501,14 +7514,53 @@ void map::draw_rough_circle(std::string type, int x, int y, int rad) {
 void map::draw_rough_circle_furn(furn_id type, int x, int y, int rad) {
     for (int i = x - rad; i <= x + rad; i++) {
         for (int j = y - rad; j <= y + rad; j++) {
-            if (rl_dist(x, y, i, j) + rng(0, 3) <= rad) {
+            if (trig_dist(x, y, i, j) + rng(0, 3) <= rad) {
                 furn_set(i, j, type);
             }
         }
     }
 }
+
 void map::draw_rough_circle_furn(std::string type, int x, int y, int rad) {
     draw_rough_circle_furn(find_furn_id(type), x, y, rad);
+}
+
+void map::draw_circle(ter_id type, double x, double y, double rad) {
+    for (int i = x - rad - 1; i <= x + rad + 1; i++) {
+        for (int j = y - rad - 1; j <= y + rad + 1; j++) {
+            if ( (x-i)*(x-i)+(y-j)*(y-j) <= rad*rad ) {
+                ter_set(i, j, type);
+            }
+        }
+    }
+}
+
+void map::draw_circle(ter_id type, int x, int y, int rad) {
+    for (int i = x - rad; i <= x + rad; i++) {
+        for (int j = y - rad; j <= y + rad; j++) {
+            if (trig_dist(x, y, i, j) <= rad) {
+                ter_set(i, j, type);
+            }
+        }
+    }
+}
+
+void map::draw_circle(std::string type, int x, int y, int rad) {
+    draw_circle(find_ter_id(type), x, y, rad);
+}
+
+void map::draw_circle_furn(furn_id type, int x, int y, int rad) {
+    for (int i = x - rad; i <= x + rad; i++) {
+        for (int j = y - rad; j <= y + rad; j++) {
+            if (trig_dist(x, y, i, j) <= rad) {
+                furn_set(i, j, type);
+            }
+        }
+    }
+}
+
+void map::draw_circle_furn(std::string type, int x, int y, int rad) {
+    draw_circle_furn(find_furn_id(type), x, y, rad);
 }
 
 void map::add_corpse( const tripoint &p ) {

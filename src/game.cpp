@@ -75,6 +75,7 @@
 #include "faction.h"
 #include "live_view.h"
 #include "recipe_dictionary.h"
+#include "cata_utility.h"
 
 #include <map>
 #include <set>
@@ -3747,6 +3748,7 @@ void game::debug()
                       _("Change time"), // 26
                       _("Set automove route"), // 27
                       _("Show mutation category levels"), // 28
+                      _("Overmap editor"), // 29
                       _("Cancel"),
                       NULL);
     int veh_num;
@@ -4392,6 +4394,11 @@ void game::debug()
         }
     }
     break;
+    case 29:
+    {
+        overmap::draw_editor();
+    }
+    break;
     }
     erase();
     refresh_all();
@@ -4929,6 +4936,9 @@ void game::draw()
         wrefresh(w_terrain);
     }
     draw_sidebar();
+#ifdef TILES
+    try_sdl_update();
+#endif // TILES
 }
 
 void game::draw_sidebar()
@@ -5072,11 +5082,6 @@ void game::draw_sidebar()
         werase(w_pixel_minimap);
         wrefresh(w_pixel_minimap);
     }
-}
-
-bool game::isBetween(int test, int down, int up)
-{
-    return test > down && test < up;
 }
 
 void game::draw_critter( const Creature &critter, const tripoint &center )
@@ -6117,14 +6122,6 @@ void game::monmove()
     }
     cleanup_dead();
 }
-
-struct pair_greater_cmp
-{
-    bool operator()( const std::pair<int, tripoint> &a, const std::pair<int, tripoint> &b)
-    {
-        return a.first > b.first;
-    }
-};
 
 void game::do_blast( const tripoint &p, const float power,
                      const float distance_factor, const bool fire )
@@ -7591,8 +7588,12 @@ void game::exam_vehicle(vehicle &veh, const tripoint &p, int cx, int cy)
             break;
         }
         u.assign_activity( ACT_VEHICLE, time, (int)vehint.sel_cmd );
-        u.activity.values.push_back(veh.global_x());    // values[0]
-        u.activity.values.push_back(veh.global_y());    // values[1]
+
+        // if we're working on an existing part, use that part as the reference point
+        // otherwise (e.g. installing a new frame), just use part 0
+        point q = veh.coord_translate(vehint.sel_vehicle_part ? vehint.sel_vehicle_part->mount : veh.parts[0].mount);
+        u.activity.values.push_back(veh.global_x() + q.x);    // values[0]
+        u.activity.values.push_back(veh.global_y() + q.y);    // values[1]
         u.activity.values.push_back(vehint.ddx);   // values[2]
         u.activity.values.push_back(vehint.ddy);   // values[3]
         u.activity.values.push_back(-vehint.ddx);   // values[4]
@@ -8159,13 +8160,15 @@ bool npc_menu( npc &who )
         who.sort_armor();
         g->u.mod_moves( -100 );
     } else if( choice == attack ) {
-        //The NPC knows we started the fight, used for morale penalty.
-        if( !who.is_enemy() ) {
-            who.hit_by_player = true;
-        }
+        if(query_yn(_("You may be attacked! Proceed?"))) {
+            //The NPC knows we started the fight, used for morale penalty.
+            if( !who.is_enemy() ) {
+                who.hit_by_player = true;
+            }
 
-        g->u.melee_attack( who, true );
-        who.make_angry();
+            g->u.melee_attack( who, true );
+            who.make_angry();
+        }
     }
 
     return true;
@@ -9153,62 +9156,6 @@ tripoint game::look_around( WINDOW *w_info, const tripoint &start_point,
     return tripoint( INT_MIN, INT_MIN, INT_MIN );
 }
 
-bool lcmatch(const std::string &str, const std::string &findstr); // ui.cpp
-bool game::list_items_match(const item *item, std::string sPattern)
-
-{
-    size_t iPos;
-    bool hasExclude = false;
-
-    if (sPattern.find("-") != std::string::npos) {
-        hasExclude = true;
-    }
-
-    do {
-        iPos = sPattern.find(",");
-        std::string pat = (iPos == std::string::npos) ? sPattern : sPattern.substr(0, iPos);
-        bool exclude = false;
-        if (pat.substr(0, 1) == "-") {
-            exclude = true;
-            pat = pat.substr(1, pat.size() - 1);
-        } else if (hasExclude) {
-            hasExclude = false; //If there are non exclusive items to filter, we flip this back to false.
-        }
-
-        std::string namepat = pat;
-        std::transform( namepat.begin(), namepat.end(), namepat.begin(), tolower );
-        if( lcmatch( item->tname(), namepat ) ) {
-            return !exclude;
-        }
-
-        if (pat.find("{", 0) != std::string::npos) {
-            std::string adv_pat_type = pat.substr(1, pat.find(":") - 1);
-            std::string adv_pat_search = pat.substr(pat.find(":") + 1, (pat.find("}") - pat.find(":")) - 1);
-            std::transform(adv_pat_search.begin(), adv_pat_search.end(), adv_pat_search.begin(), tolower);
-            if (adv_pat_type == "c" && lcmatch(item->get_category().name, adv_pat_search)) {
-                return !exclude;
-            } else if (adv_pat_type == "m") {
-                for (auto material : item->made_of_types()) {
-                    if (lcmatch(material->name(), adv_pat_search)) {
-                        return !exclude;
-                    }
-                }
-            } else if (adv_pat_type == "dgt" && item->damage > atoi(adv_pat_search.c_str())) {
-                return !exclude;
-            } else if (adv_pat_type == "dlt" && item->damage < atoi(adv_pat_search.c_str())) {
-                return !exclude;
-            }
-        }
-
-        if (iPos != std::string::npos) {
-            sPattern = sPattern.substr(iPos + 1, sPattern.size());
-        }
-
-    } while (iPos != std::string::npos);
-
-    return hasExclude;
-}
-
 std::vector<map_item_stack> game::find_nearby_items(int iRadius)
 {
     std::map<std::string, map_item_stack> temp_items;
@@ -9253,21 +9200,6 @@ std::vector<map_item_stack> game::find_nearby_items(int iRadius)
         ret.push_back( temp_items[elem] );
     }
 
-    return ret;
-}
-
-std::vector<map_item_stack> game::filter_item_stacks(std::vector<map_item_stack> stack,
-        std::string filter)
-{
-    std::vector<map_item_stack> ret;
-
-    std::string sFilterTemp = filter;
-
-    for( auto &elem : stack ) {
-        if( sFilterTemp == "" || list_items_match( elem.example, sFilterTemp ) ) {
-            ret.push_back( elem );
-        }
-    }
     return ret;
 }
 
@@ -9430,48 +9362,6 @@ void game::reset_item_list_state(WINDOW *window, int height, bool bRadiusSort)
     }
 
     refresh_all();
-}
-
-//returns the first non priority items.
-int game::list_filter_high_priority(std::vector<map_item_stack> &stack, std::string priorities)
-{
-    //TODO:optimize if necessary
-    std::vector<map_item_stack> tempstack; // temp
-    for(auto it = stack.begin(); it != stack.end();) {
-        if (priorities == "" || !list_items_match(it->example, priorities)) {
-            tempstack.push_back(*it);
-            it = stack.erase(it);
-        } else {
-            it++;
-        }
-    }
-
-    int id = stack.size();
-    for( auto &elem : tempstack ) {
-        stack.push_back( elem );
-    }
-    return id;
-}
-
-int game::list_filter_low_priority(std::vector<map_item_stack> &stack, int start,
-                                   std::string priorities)
-{
-    //TODO:optimize if necessary
-    std::vector<map_item_stack> tempstack; // temp
-    for (auto it = stack.begin() + start; it != stack.end();) {
-        if(priorities != "" && list_items_match(it->example, priorities)) {
-            tempstack.push_back(*it);
-            it = stack.erase(it);
-        } else {
-            it++;
-        }
-    }
-
-    int id = stack.size();
-    for( auto &elem : tempstack ) {
-        stack.push_back( elem );
-    }
-    return id;
 }
 
 void centerlistview( const tripoint &active_item_position )
@@ -10302,7 +10192,7 @@ bool vehicle_near( const itype_id &ft )
 
 // Handle_liquid returns false if we didn't handle all the liquid.
 bool game::handle_liquid(item &liquid, bool from_ground, bool infinite, item *source,
-                         item *cont)
+                         item *cont, int radius)
 {
     if( !liquid.made_of(LIQUID) ) {
         dbg(D_ERROR) << "game:handle_liquid: Tried to handle_liquid a non-liquid!";
@@ -10333,10 +10223,6 @@ bool game::handle_liquid(item &liquid, bool from_ground, bool infinite, item *so
             add_msg(m_info, _("The %s is already full."),
                     veh->name.c_str());
             return false;
-        } else if (from_ground && query_yn(_("Pump until full?"))) {
-            u.assign_activity(ACT_REFILL_VEHICLE, 2 * (fuel_cap - fuel_amnt));
-            u.activity.placement = vp;
-            return false; // Liquid is not handled by this function, but by the activity!
         }
         const int amt = infinite ? INT_MAX : liquid.charges;
         u.moves -= 100;
@@ -10370,9 +10256,17 @@ bool game::handle_liquid(item &liquid, bool from_ground, bool infinite, item *so
     if (cont == NULL || cont->is_null()) {
         const std::string text = string_format(_("Container for %s"), liquid.tname().c_str());
 
-        // Check for a container on the ground.
-        cont = inv_map_for_liquid(liquid, text);
+        // Check for suitable containers in inventory or within radius including vehicles
+        cont = inv_map_for_liquid(liquid, text, radius);
         if (cont == NULL || cont->is_null()) {
+            // Ask the player whether they want to drink from it.
+            if (liquid.is_food(&u)) {
+                int charges_consumed = u.drink_from_hands(liquid);
+                if (!infinite) {
+                    liquid.charges -= charges_consumed;
+                }
+            }
+
             // No container selected (escaped, ...), ask to pour
             // we asked to pour rotten already
             if (!from_ground && !liquid.rotten() &&
@@ -10458,6 +10352,7 @@ bool game::handle_liquid(item &liquid, bool from_ground, bool infinite, item *so
         }
         return infinite || liquid.charges <= 0;
     }
+
     return false;
 }
 
@@ -10585,37 +10480,6 @@ void game::drop_in_direction()
     }
 
     make_drop_activity( ACT_DROP, dirp );
-}
-
-bool compare_items_by_lesser_volume(const item &a, const item &b)
-{
-    return a.volume() < b.volume();
-}
-
-// calculate the time (in player::moves) it takes to drop the
-// items in dropped and dropped_worn.
-// Items in dropped come from the main inventory (or the wielded weapon)
-// Items in dropped_worn are cloth that had been worn.
-// All items in dropped that fit into the removed storage space
-// (freed_volume_capacity) do not take time to drop.
-// Example: dropping five 2x4 (volume 5*6) and a worn backpack
-// (storage 40) will take only the time for dropping the backpack
-// dropping two more 2x4 takes the time for dropping the backpack and
-// dropping the remaining 2x4 that does not fit into the backpack.
-int game::calculate_drop_cost(std::vector<item> &dropped, const std::vector<item> &dropped_worn,
-                              int freed_volume_capacity) const
-{
-    // Prefer to put small items into the backpack
-    std::sort(dropped.begin(), dropped.end(), compare_items_by_lesser_volume);
-    int drop_item_cnt = dropped_worn.size();
-    int total_volume_dropped = 0;
-    for( auto &elem : dropped ) {
-        total_volume_dropped += elem.volume();
-        if(freed_volume_capacity == 0 || total_volume_dropped > freed_volume_capacity) {
-            drop_item_cnt++;
-        }
-    }
-    return drop_item_cnt * 100;
 }
 
 void game::drop(std::vector<item> &dropped, std::vector<item> &dropped_worn,
@@ -10811,7 +10675,7 @@ void game::plthrow(int pos)
         return;
     }
 
-    if (u.is_wearing_item(u.i_at(pos))) {
+    if (u.is_worn(u.i_at(pos))) {
         thrown.on_takeoff(u);
     }
 
@@ -10825,25 +10689,6 @@ void game::plthrow(int pos)
 
     u.throw_item( targ, thrown );
     reenter_fullscreen();
-}
-
-// TODO: Put this into a header (which one?) and maybe move the implementation somewhere else.
-/** Comparator object to sort creatures according to their attitude from "u",
- * and (on same attitude) according to their distance to "u".
- */
-struct compare_by_dist_attitude {
-    const Creature &u;
-    bool operator()(Creature *a, Creature *b) const;
-};
-
-bool compare_by_dist_attitude::operator()(Creature *a, Creature *b) const
-{
-    const auto aa = u.attitude_to( *a );
-    const auto ab = u.attitude_to( *b );
-    if( aa != ab ) {
-        return aa < ab;
-    }
-    return rl_dist( a->pos(), u.pos() ) < rl_dist( b->pos(), u.pos() );
 }
 
 std::vector<tripoint> game::pl_target_ui( tripoint &p, int range, item *relevant, target_mode mode,
@@ -11407,7 +11252,7 @@ void game::change_side(int pos)
 {
     if (pos == INT_MIN) {
         pos = inv_for_filter(_("Change side for item:"),
-                             [&](const item &it) { return u.is_wearing_item(it) && it.is_sided(); });
+                             [&](const item &it) { return u.is_worn(it) && it.is_sided(); });
     }
 
     if (pos == INT_MIN) {
@@ -12398,7 +12243,7 @@ void game::place_player( const tripoint &dest_loc )
             u.deal_damage( nullptr, bp_foot_l, damage_instance( DT_CUT, 1 ) );
         }
     }
-    if( m.has_flag("SHARP", dest_loc) && !one_in(3) && !one_in(40 - int(u.dex_cur / 2)) &&
+    if( m.has_flag("SHARP", dest_loc) && !one_in(3) && !x_in_y(1+u.dex_cur/2, 40) &&
         (!u.in_vehicle) && (!u.has_trait("PARKOUR") || one_in(4)) ) {
         body_part bp = random_body_part();
         if(u.deal_damage( nullptr, bp, damage_instance( DT_CUT, rng( 1, 10 ) ) ).total_damage() > 0) {
@@ -12759,7 +12604,11 @@ bool game::grabbed_veh_move( const tripoint &dp )
         mdir.init(dp_veh.x, dp_veh.y);
         grabbed_vehicle->turn(mdir.dir() - grabbed_vehicle->face.dir());
         grabbed_vehicle->face = grabbed_vehicle->turn_dir;
-        grabbed_vehicle->precalc_mounts(1, mdir.dir());
+        grabbed_vehicle->precalc_mounts(1, mdir.dir(), grabbed_vehicle->pivot_point());
+
+        // cancel out any movement of the vehicle due only to a change in pivot
+        dp_veh -= grabbed_vehicle->pivot_displacement();
+
         std::vector<veh_collision> colls;
         // Set player location to illegal value so it can't collide with vehicle.
         const tripoint player_prev = u.pos();
@@ -14583,14 +14432,9 @@ void intro()
     erase();
 }
 
-bool is_worn(const player &p, const item *it)
-{
-    return !p.worn.empty() && &p.worn.front() <= it && it <= &p.worn.back();
-}
-
 void game::process_artifact(item *it, player *p)
 {
-    const bool worn = is_worn( *p, it );
+    const bool worn = p->is_worn( *it );
     const bool wielded = ( it == &p->weapon );
     std::vector<art_effect_passive> effects;
     effects = it->type->artifact->effects_carried;

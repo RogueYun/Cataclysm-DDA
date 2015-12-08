@@ -686,6 +686,11 @@ void draw_rough_circle(ter_id type, int x, int y, int rad);
 void draw_rough_circle(std::string type, int x, int y, int rad);
 void draw_rough_circle_furn(furn_id type, int x, int y, int rad);
 void draw_rough_circle_furn(std::string type, int x, int y, int rad);
+void draw_circle(ter_id type, double x, double y, double rad);
+void draw_circle(ter_id type, int x, int y, int rad);
+void draw_circle(std::string type, int x, int y, int rad);
+void draw_circle_furn(furn_id type, int x, int y, int rad);
+void draw_circle_furn(std::string type, int x, int y, int rad);
 
 void add_corpse( const tripoint &p );
 
@@ -824,9 +829,9 @@ void add_corpse( const tripoint &p );
      */
     /*@{*/
     std::list<item> use_amount_square( const tripoint &p, const itype_id type,
-                                       long &quantity, const bool use_container );
+                                       long &quantity );
     std::list<item> use_amount( const tripoint &origin, const int range, const itype_id type,
-                                long &amount, const bool use_container = false );
+                                long &amount );
     std::list<item> use_charges( const tripoint &origin, const int range, const itype_id type,
                                  long &amount );
     /*@}*/
@@ -1173,7 +1178,7 @@ protected:
         void copy_grid( const tripoint &to, const tripoint &from );
  void draw_map(const oter_id terrain_type, const oter_id t_north, const oter_id t_east,
                 const oter_id t_south, const oter_id t_west, const oter_id t_neast,
-                const oter_id t_seast, const oter_id t_nwest, const oter_id t_swest,
+                const oter_id t_seast, const oter_id t_swest, const oter_id t_nwest,
                 const oter_id t_above, const int turn, const float density,
                 const int zlevel, const regional_settings * rsettings);
 

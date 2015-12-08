@@ -17,6 +17,8 @@
 #include "veh_type.h"
 #include "ui.h"
 #include "itype.h"
+#include "cata_utility.h"
+
 #include <cmath>
 #include <list>
 #include <functional>
@@ -399,7 +401,7 @@ task_reason veh_interact::cant_do (char mode)
     bool has_skill = true;
     bool pass_checks = false; // Used in refill only
     bool has_str = false;
-    
+
     switch (mode) {
     case 'i': // install mode
         enough_morale = g->u.morale_level() >= MIN_MORALE_CRAFT;
@@ -1232,7 +1234,7 @@ void veh_interact::do_tirechange()
                        has_wrench ? "ltgreen" : "red",
                        has_jack ? "ltgreen" : "red",
                        has_str ? "ltgreen" : "red",
-                       needed_strength);                       
+                       needed_strength);
         wrefresh (w_msg);
         return;
     case MOVING_VEHICLE:
@@ -1364,9 +1366,8 @@ void veh_interact::move_cursor (int dx, int dy)
     cpart = part_at (0, 0);
     int vdx = -ddx;
     int vdy = -ddy;
-    int vx, vy;
-    veh->coord_translate (vdx, vdy, vx, vy);
-    tripoint vehp = veh->global_pos3() + point( vx, vy );
+    point q = veh->coord_translate (point(vdx, vdy));
+    tripoint vehp = veh->global_pos3() + q;
     bool obstruct = g->m.move_cost_ter_furn( vehp ) == 0;
     vehicle *oveh = g->m.veh_at( vehp );
     if( oveh != nullptr && oveh != veh ) {
@@ -1836,7 +1837,7 @@ void veh_interact::display_details( const vpart_info *part )
     fold_and_print(w_details, line+2, col_1, column_width, c_white,
                    "%s: <color_ltgray>%.1f%s</color>",
                    small_mode ? _("Wgt") : _("Weight"),
-                   g->u.convert_weight(item::find_type( part->item )->weight),
+                   convert_weight(item::find_type( part->item )->weight),
                    OPTIONS["USE_METRIC_WEIGHTS"].getValue() == "lbs" ? "lb" : "kg");
     if ( part->folded_volume != 0 ) {
         fold_and_print(w_details, line+2, col_2, column_width, c_white,
@@ -2261,22 +2262,22 @@ void complete_vehicle ()
 
         if ( vpinfo.has_flag("CONE_LIGHT") ) {
             // Need map-relative coordinates to compare to output of look_around.
-            int gx, gy;
             // Need to call coord_translate() directly since it's a new part.
-            veh->coord_translate(dx, dy, gx, gy);
+            point q = veh->coord_translate(point(dx, dy));
+
             // Stash offset and set it to the location of the part so look_around will start there.
             int px = g->u.view_offset.x;
             int py = g->u.view_offset.y;
-            g->u.view_offset.x = veh->global_x() + gx - g->u.posx();
-            g->u.view_offset.y = veh->global_y() + gy - g->u.posy();
+            g->u.view_offset.x = veh->global_x() + q.x - g->u.posx();
+            g->u.view_offset.y = veh->global_y() + q.y - g->u.posy();
             popup(_("Choose a facing direction for the new headlight."));
             tripoint headlight_target = g->look_around(); // Note: no way to cancel
             // Restore previous view offsets.
             g->u.view_offset.x = px;
             g->u.view_offset.y = py;
 
-            int delta_x = headlight_target.x - (veh->global_x() + gx);
-            int delta_y = headlight_target.y - (veh->global_y() + gy);
+            int delta_x = headlight_target.x - (veh->global_x() + q.x);
+            int delta_y = headlight_target.y - (veh->global_y() + q.x);
 
             const double PI = 3.14159265358979f;
             int dir = int(atan2(static_cast<float>(delta_y), static_cast<float>(delta_x)) * 180.0 / PI);

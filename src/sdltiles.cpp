@@ -38,8 +38,6 @@
 #   ifndef strcasecmp
 #       define strcasecmp StrCmpI
 #   endif
-#else
-#   include <wordexp.h>
 #endif
 
 #include <SDL.h>
@@ -96,6 +94,8 @@ struct music_playlist {
 };
 
 std::map<std::string, music_playlist> playlists;
+
+std::string current_soundpack_path = "";
 #endif
 
 /**
@@ -1291,7 +1291,6 @@ static void save_font_list()
     strcat(buf, "\\fonts");
     font_folder_list(fout, buf);
 #elif (defined _APPLE_ && defined _MACH_)
-
     /*
     // Well I don't know how osx actually works ....
     font_folder_list(fout, "/System/Library/Fonts");
@@ -1301,15 +1300,16 @@ static void save_font_list()
     wordexp("~/Library/Fonts", &exp, 0);
     font_folder_list(fout, exp.we_wordv[0]);
     wordfree(&exp);*/
-#elif (defined linux || defined __linux)
+#else // Other POSIX-ish systems
     font_folder_list(fout, "/usr/share/fonts");
     font_folder_list(fout, "/usr/local/share/fonts");
-    wordexp_t exp;
-    wordexp("~/.fonts", &exp, 0);
-    font_folder_list(fout, exp.we_wordv[0]);
-    wordfree(&exp);
+    char *home;
+    if( ( home = getenv( "HOME" ) ) ) {
+        std::string userfontdir = home;
+        userfontdir += "/.fonts";
+        font_folder_list( fout, userfontdir );
+    }
 #endif
-    //TODO: other systems
 
     bitmap_fonts->clear();
     delete bitmap_fonts;
@@ -2011,7 +2011,7 @@ SDL_Color cursesColorToSDL(int color) {
 void musicFinished();
 
 void play_music_file(std::string filename, int volume) {
-    const std::string path = (FILENAMES["datadir"] + "sound/" + filename);
+    const std::string path = ( current_soundpack_path + "/" + filename );
     current_music = Mix_LoadMUS(path.c_str());
     if( current_music == nullptr ) {
         dbg( D_ERROR ) << "Failed to load audio file " << path << ": " << Mix_GetError();
@@ -2089,7 +2089,7 @@ void sfx::load_sound_effects( JsonObject &jsobj ) {
     while( jsarr.has_more() ) {
         sound_effect new_sound_effect;
         const std::string file = jsarr.next_string();
-        std::string path = ( FILENAMES[ "datadir" ] + "sound/" + file );
+        std::string path = ( current_soundpack_path + "/" + file );
         new_sound_effect.chunk.reset( Mix_LoadWAV( path.c_str() ) );
         if( !new_sound_effect.chunk ) {
             dbg( D_ERROR ) << "Failed to load audio file " << path << ": " << Mix_GetError();
@@ -2268,8 +2268,32 @@ void sfx::play_ambient_variant_sound( std::string id, std::string variant, int v
 
 void load_soundset() {
 #ifdef SDL_SOUND
+    const std::string default_path = FILENAMES["defaultsounddir"];
+    const std::string default_soundpack = "basic";
+    std::string current_soundpack = OPTIONS["SOUNDPACKS"].getValue();
+    std::string soundpack_path;
+
+    // Get curent soundpack and it's directory path.
+    if (current_soundpack.empty()) {
+        dbg( D_ERROR ) << "Soundpack not set in OPTIONS. Corrupted options or empty soundpack name";
+        soundpack_path = default_path;
+        current_soundpack = default_soundpack;
+    } else {
+        dbg( D_INFO ) << "Current OPTIONS soundpack is: " << current_soundpack;
+        soundpack_path = SOUNDPACKS[current_soundpack];
+    }
+
+    if (soundpack_path.empty()) {
+        dbg( D_ERROR ) << "Soundpack with name " << current_soundpack << " can't be found or empty string";
+        soundpack_path = default_path;
+        current_soundpack = default_soundpack;
+    } else {
+        dbg( D_INFO ) << '"' << current_soundpack << '"' << " soundpack: found path: " << soundpack_path;
+    }
+
+    current_soundpack_path = soundpack_path;
     try {
-        DynamicDataLoader::get_instance().load_data_from_path( FILENAMES["datadir"] + "sound/" );
+        DynamicDataLoader::get_instance().load_data_from_path( soundpack_path );
     } catch( const std::exception &err ) {
         dbg( D_ERROR ) << "failed to load sounds: " << err.what();
     }
