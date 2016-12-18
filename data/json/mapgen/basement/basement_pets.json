@@ -1,0 +1,175 @@
+[
+  {
+    "type" : "item_group",
+    "id" : "pet_supplies",
+    "items":[
+      ["fish_bowl", 3],
+      ["magnifying_glass", 5],
+      ["rock", 20],
+      ["stick", 20],
+      ["pine_bough", 10],
+      ["one_year_old_newspaper", 20],
+      ["months_old_newspaper", 20],
+      ["weeks_old_newspaper", 20],
+      ["newest_newspaper", 20],
+      ["survnote", 1],
+      ["mag_survival", 40],
+      ["mag_traps", 20],
+      ["trappers_companion", 10],
+      ["textbook_traps", 5],
+      ["dog_whistle", 5],
+      ["pet_carrier",2],
+      ["rag", 50],
+      ["funnel", 50],
+      ["jar_glass", 50],
+      ["jar_3l_glass", 40],
+      ["tongs", 25],
+      ["thermometer", 3],
+      ["duct_tape", 60],
+      ["bucket", 5],
+      ["hose", 15],
+      ["wire", 50]
+    ]
+  },{
+    "type" : "item_group",
+    "id" : "pet_food",
+    "items":[
+      ["protein_powder", 15],
+      ["acorns", 15],
+      ["hickory_nut", 15],
+      ["water_clean", 90],
+      ["dogfood", 20],
+      ["catfood", 20],
+      ["fried_seeds", 25],
+      ["spoon", 50],
+      ["ceramic_bowl", 40],
+      ["cornmeal", 20],
+      ["powder_eggs", 20],
+      ["granola", 5],
+      ["dry_meat", 10],
+      ["dry_fish", 10],
+      ["dry_veggy", 10],
+      ["dry_fruit", 10],
+      ["salt", 40],
+      ["irradiated_cabbage", 5],
+      ["irradiated_lettuce", 5],
+      ["irradiated_carrot", 5],
+      ["jerky", 10],
+      ["oatmeal", 20]
+    ]
+  },{
+    "type" : "item_group",
+    "id" : "pet_medicine",
+    "items":[
+      ["vitamins", 50],
+      ["disinfectant", 35],
+      ["antibiotics", 15],
+      ["antifungal", 3],
+      ["antiparasitic", 3],
+      ["syringe", 8]
+    ]
+  },{
+    "name": "GROUP_PETS_MAMMALS",
+    "type": "monstergroup",
+    "default": "mon_null",
+    "monsters": [
+      { "monster": "mon_bat", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_black_rat", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_sewer_rat", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_chipmunk", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_rabbit", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_squirrel", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_squirrel_red", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_raccoon", "freq": 40, "cost_multiplier": 1 }
+    ]
+  },{
+    "name": "GROUP_PETS_INSECTS",
+    "type": "monstergroup",
+    "default": "mon_null",
+    "monsters": [
+      { "monster": "mon_ant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_centipede_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_fly", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_giant_cockroach", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_spider_jumping_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_spider_trapdoor_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_spider_web", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_spider_widow_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_spider_wolf_giant", "freq": 40, "cost_multiplier": 1 }
+    ]
+  },{
+    "name": "GROUP_PETS_HERPS",
+    "type": "monstergroup",
+    "default": "mon_null",
+    "monsters": [
+      { "monster": "mon_frog_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_rattlesnake", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_rattlesnake_giant", "freq": 40, "cost_multiplier": 1 },
+      { "monster": "mon_sewer_snake", "freq": 40, "cost_multiplier": 1 }
+    ]
+  },{
+    "type": "mapgen",
+    "method": "json",
+    "om_terrain": [ "basement" ],
+    "weight": 10000,
+    "object": {
+      "fill_ter": "t_rock",
+      "rotation": [ 0, 3 ],
+      "rows": [
+        "                        ",
+        "                        ",
+        "                        ",
+        "   |----------------|   ",
+        "   |................|   ",
+        "   |.===..=%%=..===.|   ",
+        "   |.X.=..=..=..=.%.|   ",
+        "   |.%.=..====..=.%.|   ",
+        "   |.===........===.|   ",
+        "   |................|   ",
+        "   |.===.R|--|R.===.|   ",
+        "   |.%.=.R|<<|R.=.%.|   ",
+        "   |.%.=.R|..|R.=.%.|   ",
+        "   |.===.R|++|R.===.|   ",
+        "   |................|   ",
+        "   |.===........===.|   ",
+        "   |.%.=..====..=.%.|   ",
+        "   |.%.=..=..=..=.%.|   ",
+        "   |.===..=%%=..===.|   ",
+        "   |................|   ",
+        "   |----------------|   ",
+        "                        ",
+        "                        ",
+        "                        "
+      ],
+      "terrain": {
+        ".": "t_rock_floor",
+        "R": "t_rock_floor",
+        "=": "t_wall_glass",
+        "%": "t_door_glass_c",
+        "X": "t_door_glass_o",
+        "<": "t_stairs_up",
+        "+": "t_door_c",
+        "-": "t_wall",
+        "|": "t_wall"
+      },
+      "furniture": {
+        "R": "f_rack"
+      },
+      "place_loot": [
+        { "group": "pet_supplies", "x": 9, "y": [ 10, 13 ], "chance": 80, "repeat": [ 1, 4 ] },
+        { "group": "pet_food", "x": 14, "y": [ 10, 11 ], "chance": 80, "repeat": [ 1, 2 ] },
+        { "group": "pet_medicine", "x": 14, "y": [ 12, 13 ], "chance": 80, "repeat": [ 1, 2 ] }
+      ],
+      "place_monsters": [
+        { "monster": "GROUP_PETS_MAMMALS", "x": 6, "y": [ 6, 7 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_MAMMALS", "x": 6, "y": [ 11, 12 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_MAMMALS", "x": 6, "y": [ 16, 17 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_INSECTS", "x": 17, "y": [ 6, 7 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_INSECTS", "x": 17, "y": [ 11, 12 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_INSECTS", "x": 17, "y": [ 16, 17 ], "repeat": 2 },
+        { "monster": "GROUP_PETS_HERPS", "x": [ 11, 12 ], "y": 6, "repeat": 2 },
+        { "monster": "GROUP_PETS_HERPS", "x": [ 11, 12 ], "y": 17, "repeat": 2 }
+      ]
+    }
+  }
+]
